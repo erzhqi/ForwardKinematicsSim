@@ -65,6 +65,13 @@ sliderTwo = Slider(slideTwo, "Angle 2", valmin=-180, valmax=180, valinit=sliderT
 slideThree = plt.axes([0.12, 0.00, 0.8, 0.05], facecolor="teal")
 sliderThree = Slider(slideThree, "Angle 3", valmin=-180, valmax=180, valinit=sliderThreeInitial, valstep=1)
 
+def transform(angle, length):
+    return np.array([
+        [math.cos(angle), -math.sin(angle), length*math.cos(angle)],
+        [math.sin(angle), math.cos(angle), length*math.sin(angle)],
+        [0, 0, 1],
+    ])
+
 def update(val):
     angle1 = sliderOne.val
     angle2 = sliderTwo.val
@@ -74,12 +81,17 @@ def update(val):
     angle2 = math.radians(angle2)
     angle3 = math.radians(angle3)
 
-    pointOnex = lengthLink1 * math.cos(angle1)
-    pointOney = lengthLink1 * math.sin(angle1)
-    pointTwox = pointOnex + lengthLink2 * math.cos(angle1 + angle2)
-    pointTwoy = pointOney + lengthLink2 * math.sin(angle1 + angle2)
-    pointThreex = pointTwox + lengthLink3 * math.cos(angle1 + angle2 + angle3)
-    pointThreey = pointTwoy + lengthLink3 * math.sin(angle1 + angle2 + angle3)
+    transform1 = transform(angle1, lengthLink1)
+    transform2 = transform(angle2, lengthLink2)
+    transform3 = transform(angle3, lengthLink3)
+
+    joint1 = transform1 @ np.array([0, 0, 1])
+    joint2 = transform1 @ transform2 @ np.array([0, 0, 1])
+    joint3 = transform1 @ transform2 @transform3 @ np.array([0, 0, 1])
+
+    pointOnex, pointOney = joint1[0], joint1[1]
+    pointTwox, pointTwoy = joint2[0], joint2[1]
+    pointThreex, pointThreey = joint3[0], joint3[1]
 
     pointOne.set_xdata([pointOnex])
     pointOne.set_ydata([pointOney])

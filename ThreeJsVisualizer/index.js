@@ -15,6 +15,7 @@ const near = 0.1;
 const far = 15;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 camera.position.z = 0.5;
+
 const scene = new THREE.Scene();
 
 // Setting up cursor controls
@@ -56,7 +57,7 @@ async function buildArm(){
     }
 
     const pivot1 = new THREE.Group();
-    pivot1.position.set(0.00029, 0, 0.055);
+    pivot1.position.set(0, 0, 0);
     const pivotMarker = new THREE.Mesh(
     new THREE.SphereGeometry(0.005, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xff0000 })
@@ -78,10 +79,12 @@ async function buildArm(){
     return {pivot1/*, pivot2, pivot3*/};
 }
 
+
 function animate(){
     requestAnimationFrame(animate);
-    renderer.render(scene, camera);
+
     controls.update();
+    renderer.render(scene, camera);
 }
 buildArm();
 animate();

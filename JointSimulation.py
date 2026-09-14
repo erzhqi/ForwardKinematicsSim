@@ -10,18 +10,19 @@ fig.subplots_adjust(left=0.12, right=0.95, bottom=0.18, top=0.90)
 fig.subplots_adjust(
     left=0.10,
     right=0.95,
-    bottom=0.15,
+    bottom=0.20,
     top=0.95,
 )
 
 ax.set_title("3 DOF FK Simulator")
-ax.set_xlim(-3, 8)
-ax.set_ylim(-3, 8)
-ax.set_xticks(range(-3, 9))
-ax.set_yticks(range(-3, 9))
+ax.set_xlim(-6, 6)
+ax.set_ylim(-2, 6)
+ax.set_xticks(range(-6, 7))
+ax.set_yticks(range(-2, 7))
+ax.set_aspect('equal')
 ax.grid(True)
-ax.plot([-3, 8], [0, 0], color="gray")
-ax.plot([0, 0], [-3, 8], color="gray")
+ax.plot([-6, 6], [0, 0], color="gray")
+ax.plot([0, 0], [-2, 6], color="gray")
 
 basePointx = 0
 basePointy = 0
@@ -56,13 +57,13 @@ sliderTwoInitial = link2Initial - sliderOneInitial
 link3Initial = math.degrees(math.atan2(pointThreey-pointTwoy, pointThreex-pointTwox))
 sliderThreeInitial = link3Initial - link2Initial
 
-slideOne = plt.axes([0.12, 0.06, 0.8, 0.05], facecolor="teal")
+slideOne = plt.axes([0.12, 0.10, 0.7, 0.05], facecolor="teal")
 sliderOne = Slider(slideOne, "Angle 1", valmin=-180, valmax=180, valinit=sliderOneInitial, valstep=1)
 
-slideTwo = plt.axes([0.12, 0.03, 0.8, 0.05], facecolor="teal")
+slideTwo = plt.axes([0.12, 0.06, 0.7, 0.05], facecolor="teal")
 sliderTwo = Slider(slideTwo, "Angle 2", valmin=-180, valmax=180, valinit=sliderTwoInitial, valstep=1)
 
-slideThree = plt.axes([0.12, 0.00, 0.8, 0.05], facecolor="teal")
+slideThree = plt.axes([0.12, 0.02, 0.7, 0.05], facecolor="teal")
 sliderThree = Slider(slideThree, "Angle 3", valmin=-180, valmax=180, valinit=sliderThreeInitial, valstep=1)
 
 def transform(angle, length):
@@ -93,19 +94,23 @@ def update(val):
     pointTwox, pointTwoy = joint2[0], joint2[1]
     pointThreex, pointThreey = joint3[0], joint3[1]
 
-    pointOne.set_xdata([pointOnex])
-    pointOne.set_ydata([pointOney])
-    pointTwo.set_xdata([pointTwox])
-    pointTwo.set_ydata([pointTwoy])
-    pointThree.set_xdata([pointThreex])
-    pointThree.set_ydata([pointThreey])
 
-    pointOneLine.set_xdata([basePointx, pointOnex])
-    pointOneLine.set_ydata([basePointy, pointOney])
-    pointTwoLine.set_xdata([pointOnex, pointTwox])
-    pointTwoLine.set_ydata([pointOney, pointTwoy])
-    pointThreeLine.set_xdata([pointTwox, pointThreex])
-    pointThreeLine.set_ydata([pointTwoy, pointThreey])
+    if (pointOney >= 0 and pointTwoy >= 0 and pointThreey >= 0):
+        pointOne.set_xdata([pointOnex])
+        pointOne.set_ydata([pointOney])
+
+        pointTwo.set_xdata([pointTwox])
+        pointTwo.set_ydata([pointTwoy])
+
+        pointThree.set_xdata([pointThreex])
+        pointThree.set_ydata([pointThreey])
+
+        pointOneLine.set_xdata([basePointx, pointOnex])
+        pointOneLine.set_ydata([basePointy, pointOney])
+        pointTwoLine.set_xdata([pointOnex, pointTwox])
+        pointTwoLine.set_ydata([pointOney, pointTwoy])
+        pointThreeLine.set_xdata([pointTwox, pointThreex])
+        pointThreeLine.set_ydata([pointTwoy, pointThreey])
     fig.canvas.draw_idle()
 
 sliderOne.on_changed(update)

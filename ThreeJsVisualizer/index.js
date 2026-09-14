@@ -79,12 +79,19 @@ async function buildArm(){
     return {pivot1/*, pivot2, pivot3*/};
 }
 
+let joints;
+
+async function init(){
+    joints = await buildArm();
+}
+init();
 
 function animate(){
     requestAnimationFrame(animate);
-
+    if (joints) {
+        joints.pivot1.rotation.z = Math.PI / 6; // hardcoded test angle (~30°)
+    }
     controls.update();
     renderer.render(scene, camera);
 }
-buildArm();
 animate();

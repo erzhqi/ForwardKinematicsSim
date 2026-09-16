@@ -14,7 +14,9 @@ const aspect = w / h;
 const near = 0.1;
 const far = 15;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-camera.position.z = 0.5;
+camera.up.set(0, 0, 1); 
+camera.position.set(0.5, 0, 0.05);
+camera.lookAt(0, 0, 0.05);
 
 const scene = new THREE.Scene();
 
@@ -43,7 +45,7 @@ function loadModel(path){
 }
 
 async function buildArm(){
-    const arm = await loadModel("CADModels/ArmAssembly.gltf");
+    const arm = await loadModel("CADModels/OneJointArmAssembly.gltf");
     scene.add(arm);
 
     const base = arm.getObjectByName("Part_1");
@@ -79,19 +81,13 @@ async function buildArm(){
     return {pivot1/*, pivot2, pivot3*/};
 }
 
-let joints;
-
-async function init(){
-    joints = await buildArm();
-}
-init();
-
 function animate(){
     requestAnimationFrame(animate);
-    if (joints) {
-        joints.pivot1.rotation.z = Math.PI / 6; // hardcoded test angle (~30°)
-    }
+
+    console.log(camera.position);
+
     controls.update();
     renderer.render(scene, camera);
 }
+buildArm();
 animate();

@@ -33,6 +33,39 @@ scene.add(floor);
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x000000));
 
+// ---- Overhead light ----
+// Z is up, and the arm is ~0.2 units tall, so the lamp hangs 0.5 above the floor.
+// Move LAMP_POSITION / LAMP_TARGET to aim it somewhere else; raise LAMP_INTENSITY to brighten.
+const LAMP_POSITION = new THREE.Vector3(0.0, 0.05, 0.5);
+const LAMP_TARGET   = new THREE.Vector3(0.0, 0.05, 0.1);
+const LAMP_INTENSITY = 2.0;
+
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const lamp = new THREE.DirectionalLight(0xffffff, LAMP_INTENSITY);
+lamp.position.copy(LAMP_POSITION);
+lamp.target.position.copy(LAMP_TARGET);
+lamp.castShadow = true;
+lamp.shadow.mapSize.set(2048, 2048);
+lamp.shadow.camera.near = 0.01;
+lamp.shadow.camera.far = 2;
+lamp.shadow.camera.left = -0.3;
+lamp.shadow.camera.right = 0.3;
+lamp.shadow.camera.top = 0.3;
+lamp.shadow.camera.bottom = -0.3;
+lamp.shadow.bias = -0.0005;
+scene.add(lamp);
+scene.add(lamp.target);
+
+// Small glowing bulb so you can see where the light is
+const bulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.012, 24, 24),
+    new THREE.MeshBasicMaterial({ color: 0xfff2b0 })
+);
+bulb.position.copy(LAMP_POSITION);
+scene.add(bulb);
+
 // ---- Model loading ----
 const loader = new GLTFLoader();
 function loadModel(path) {
@@ -152,6 +185,11 @@ function findTip(pivot, link) {
 async function buildArm() {
     const arm = await loadModel("CADModels/ArmAssemblyFull.gltf");
     scene.add(arm);
+
+    // Let the arm cast and receive shadows from the lamp
+    arm.traverse((o) => {
+        if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+    });
 
     const base = arm.getObjectByName("Part_1");
     const links = JOINTS.map((j) => arm.getObjectByName(j.name));

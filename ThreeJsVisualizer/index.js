@@ -52,7 +52,7 @@ const PIVOT_OVERRIDE = null;  // e.g. new THREE.Vector3(0, 0, 0.03)
 const AXIS_OVERRIDE  = null;  // e.g. new THREE.Vector3(1, 0, 0)
 
 async function buildArm() {
-    const arm = await loadModel("CADModels/OneJointArmAssembly.gltf");
+    const arm = await loadModel("CADModels/ArmAssemblyFull.gltf");
     scene.add(arm);
 
     const base = arm.getObjectByName("Part_1");

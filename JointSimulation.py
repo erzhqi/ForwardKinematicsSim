@@ -3,6 +3,7 @@ from matplotlib.widgets import Slider, Button
 import numpy as np
 import math
 
+# --- Figure confiruation ---
 fig = plt.figure(figsize=(7,7))
 ax = fig.add_subplot(1, 1, 1)
 fig.subplots_adjust(left=0.12, right=0.95, bottom=0.18, top=0.90)
@@ -23,6 +24,8 @@ ax.set_aspect('equal')
 ax.grid(True)
 ax.plot([-6, 6], [0, 0], color="gray")
 ax.plot([0, 0], [-2, 6], color="gray")
+
+# --- Arm Visualizer Setup ---
 
 basePointx = 0
 basePointy = 0
@@ -63,6 +66,7 @@ sliderTwo = Slider(slideTwo, "Angle 2", valmin=-180, valmax=180, valinit=sliderT
 slideThree = plt.axes([0.12, 0.02, 0.7, 0.05], facecolor="teal")
 sliderThree = Slider(slideThree, "Angle 3", valmin=-180, valmax=180, valinit=sliderThreeInitial, valstep=1)
 
+# --- Reset Button --- 
 def resetButtonClick(event):
     sliderOne.set_active(True)
     sliderTwo.set_active(True)
@@ -97,7 +101,7 @@ def resetButtonClick(event):
 resetButtonAx = plt.axes([0.45, 0.16, 0.1, 0.05])
 resetButton = Button(resetButtonAx, "Reset")
 
-
+# Homogeneous transform matrix
 def transform(angle, length):
     return np.array([
         [math.cos(angle), -math.sin(angle), length*math.cos(angle)],
@@ -118,6 +122,7 @@ def update(val):
     transform2 = transform(angle2, lengthLink2)
     transform3 = transform(angle3, lengthLink3)
 
+    # Transforms based upon a hierarchy down the kinematic chain
     joint1 = transform1 @ np.array([0, 0, 1])
     joint2 = transform1 @ transform2 @ np.array([0, 0, 1])
     joint3 = transform1 @ transform2 @transform3 @ np.array([0, 0, 1])
@@ -126,7 +131,7 @@ def update(val):
     pointTwox, pointTwoy = joint2[0], joint2[1]
     pointThreex, pointThreey = joint3[0], joint3[1]
 
-
+    # Only dynamically updates the arm if moving the slider doesn't cause it to go below x = 0
     if (pointOney >= 0 and pointTwoy >= 0 and pointThreey >= 0):
         pointOne.set_xdata([pointOnex])
         pointOne.set_ydata([pointOney])
@@ -144,6 +149,7 @@ def update(val):
         pointThreeLine.set_xdata([pointTwox, pointThreex])
         pointThreeLine.set_ydata([pointTwoy, pointThreey])
     else:
+        # Disabling sliders if a part of the arm goes below x = 0
         if fig.canvas.mouse_grabber is not None:
             fig.canvas.release_mouse(fig.canvas.mouse_grabber)
         sliderOne.set_active(False)

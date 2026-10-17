@@ -11,7 +11,7 @@ document.body.appendChild(renderer.domElement);
 // ---- Scene setup ----
 const fov = 75;
 const aspect = w / h;
-const near = 0.01; // lowered since the model is tiny
+const near = 0.01; // changing camera distance from the model
 const far = 15;
 const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 camera.up.set(0, 0, 1);
@@ -34,8 +34,6 @@ scene.add(floor);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x000000));
 
 // ---- Overhead light ----
-// Z is up, and the arm is ~0.2 units tall, so the lamp hangs 0.5 above the floor.
-// Move LAMP_POSITION / LAMP_TARGET to aim it somewhere else; raise LAMP_INTENSITY to brighten.
 const LAMP_POSITION = new THREE.Vector3(0.0, 0.05, 0.5);
 const LAMP_TARGET   = new THREE.Vector3(0.0, 0.05, 0.1);
 const LAMP_INTENSITY = 2.0;
@@ -77,18 +75,6 @@ function loadModel(path) {
 // ---- Joint settings ----
 // Listed from the base outward: each joint is parented to the one before it,
 // so moving joint 1 carries joints 2 and 3 along with it.
-//
-// HARDCODED PIVOTS (measured from the hinge holes in ArmAssemblyFull.gltf)
-//   pivot = centre of the hinge pin, axis = direction of the pin.
-//   Both are in world coordinates with the arm in the pose it has in the file.
-//   All three pins are 10 mm holes (r = 5 mm) running along the X axis:
-//     joint 1: base clevis        <-> bottom of the upright link   (y = 0,        z = 0.055)
-//     joint 2: top of upright link <-> forked end of the long link  (y = -0.00018, z = 0.18347)
-//     joint 3: end of the long link <-> gripper                     (y = 0.09022,  z = 0.18875)
-//
-// Set AUTO_DETECT = true only if you swap the CAD model and want the console to
-// print a fresh starting guess for new values.
-const AUTO_DETECT = false;
 
 const JOINTS = [
     {
@@ -199,34 +185,14 @@ async function buildArm() {
         return [];
     }
 
-    // 1) Work out each hinge (hardcoded, or auto-detected while calibrating)
+    // 1) Work out each hinge
     arm.updateWorldMatrix(true, true);
 
     let hinges;
-    if (AUTO_DETECT) {
-        const baseCenter = new THREE.Box3().setFromObject(base).getCenter(new THREE.Vector3());
-        const autos = links.map((l) => detectHinge(l, baseCenter));
-
-        hinges = JOINTS.map((cfg, i) => {
-            // Joint 1: the near end of its own link. Every later joint shares its pin with
-            // the previous link, so it uses that link's far-end pin (and pin axis).
-            const src = i === 0
-                ? { pivot: autos[0].near, axis: autos[0].axis }
-                : { pivot: autos[i - 1].far, axis: autos[i - 1].axis };
-            return { pivot: src.pivot.clone(), axis: src.axis.clone().normalize() };
-        });
-
-        const fmt = (v) => `new THREE.Vector3(${+v.x.toFixed(5)}, ${+v.y.toFixed(5)}, ${+v.z.toFixed(5)})`;
-        console.log("AUTO_DETECT values - paste into JOINTS, then set AUTO_DETECT = false:");
-        JOINTS.forEach((cfg, i) => {
-            console.log(`${cfg.name}:\n  pivot: ${fmt(hinges[i].pivot)},\n  axis:  ${fmt(hinges[i].axis)},`);
-        });
-    } else {
-        hinges = JOINTS.map((cfg) => ({
-            pivot: cfg.pivot.clone(),
-            axis: cfg.axis.clone().normalize(),
-        }));
-    }
+    hinges = JOINTS.map((cfg) => ({
+        pivot: cfg.pivot.clone(),
+        axis: cfg.axis.clone().normalize(),
+    }));
 
     // 2) Nest the pivots: each one is a child of the previous pivot
     const rig = [];
@@ -299,8 +265,6 @@ function pickJoint() {
 }
 
 // Intersect the mouse ray with the plane the active handle sweeps through.
-// Axis and pivot are re-read every call, so this stays correct even when
-// parent joints have rotated.
 function getPlaneVector(joint, out) {
     joint.pivot.getWorldPosition(pivotWorld);
     joint.pivot.parent.updateWorldMatrix(true, false);
@@ -359,91 +323,11 @@ window.addEventListener("keydown", (e) => {
     rig.forEach((j) => { j.angle = 0; j.pivot.quaternion.identity(); });
 });
 
-// ---- Calibration: nudge a pivot onto its hinge hole ----
-// Works in the rest pose, so press R first. Then:
-//   1 / 2 / 3        select a joint (its red dot turns white)
-//   Arrow keys       move the pivot in the plane of the hinge
-//   PageUp/PageDown  move the pivot along the pin (to centre it between the ears)
-//   Shift            fine steps
-// Final values are printed to the console, ready to paste into JOINTS.
-const CALIBRATE = false;
-const STEP = 0.0005;
-const STEP_FINE = 0.0001;
-let selected = 1;   // start on joint 2
-
-function selectJoint(i) {
-    if (!rig[i]) return;
-    selected = i;
-    rig.forEach((j, k) => j.marker.material.color.set(k === i ? 0xffffff : 0xff0000));
-    console.log(`Selected ${rig[i].cfg.name} (joint ${i + 1})`);
-}
-
-function nudgePivot(i, worldDelta) {
-    const j = rig[i];
-    if (rig.some((r) => r.angle !== 0)) {
-        console.log("Press R to return to the rest pose before calibrating.");
-        return;
-    }
-    const parent = j.pivot.parent;
-    parent.updateWorldMatrix(true, false);
-    const target = j.pivot.getWorldPosition(new THREE.Vector3()).add(worldDelta);
-    const local = parent.worldToLocal(target);
-    const d = local.clone().sub(j.pivot.position);
-
-    // Move the pivot, and counter-move everything inside it so only the pivot moves
-    j.pivot.position.copy(local);
-    j.link.position.sub(d);
-    j.handle.position.sub(d);
-    const next = rig[i + 1];
-    if (next) next.pivot.position.sub(d);
-}
-
-function printCalibration() {
-    const fmt = (v) => `new THREE.Vector3(${+v.x.toFixed(5)}, ${+v.y.toFixed(5)}, ${+v.z.toFixed(5)})`;
-    console.log("Calibrated values - paste into JOINTS and set AUTO_DETECT = false:");
-    rig.forEach((j) => {
-        const p = j.pivot.getWorldPosition(new THREE.Vector3());
-        console.log(`${j.cfg.name}:\n  pivot: ${fmt(p)},\n  axis:  ${fmt(j.axis)},`);
-    });
-}
-
-window.addEventListener("keydown", (e) => {
-    if (!CALIBRATE || rig.length === 0) return;
-
-    if (e.key === "1" || e.key === "2" || e.key === "3") {
-        selectJoint(Number(e.key) - 1);
-        return;
-    }
-
-    const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown"];
-    if (!keys.includes(e.key)) return;
-    e.preventDefault();
-
-    const j = rig[selected];
-    const step = e.shiftKey ? STEP_FINE : STEP;
-
-    // pin axis = world axis with the biggest component; the other two span the hinge plane
-    const comps = [Math.abs(j.axis.x), Math.abs(j.axis.y), Math.abs(j.axis.z)];
-    const k = comps.indexOf(Math.max(...comps));
-    const [u, v] = [0, 1, 2].filter((c) => c !== k);
-
-    const delta = new THREE.Vector3();
-    if (e.key === "ArrowLeft")  delta.setComponent(u, -step);
-    if (e.key === "ArrowRight") delta.setComponent(u,  step);
-    if (e.key === "ArrowUp")    delta.setComponent(v,  step);
-    if (e.key === "ArrowDown")  delta.setComponent(v, -step);
-    if (e.key === "PageUp")     delta.setComponent(k,  step);
-    if (e.key === "PageDown")   delta.setComponent(k, -step);
-
-    nudgePivot(selected, delta);
-    printCalibration();
-});
-
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
 }
 
-buildArm().then((result) => { rig = result; if (CALIBRATE) selectJoint(selected); });
+buildArm().then((result) => { rig = result});
 animate();
